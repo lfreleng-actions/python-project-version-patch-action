@@ -2,38 +2,53 @@
 # SPDX-License-Identifier: Apache-2.0
 # SPDX-FileCopyrightText: 2025 The Linux Foundation
 
-# actions-template
-name: "🛠️ Actions Template"
-description: "Description of action"
-# Any relevant notes/observations can go here
+# python-project-version-patch-action
+name: "🐍 Patches the Python Project Version"
+description: "Replaces/updates the Python project metadata/version string"
+# Note: works with both pyproject.toml and setup.py
 
 inputs:
-  INPUT:
-    description: "Description of input"
-    required: false
+  REPLACEMENT_VERSION:
+    description: "New project version string"
+    required: true
     type: string
-    default: "input"
-
-outputs:
-  OUTPUT:
-    description: "Description of output"
-    value: ${{ steps.code.outputs.output }}
+  PATH_PREFIX:
+    description: "Directory location containing project code"
+    type: string
+    required: false
+    default: ""
 
 runs:
   using: "composite"
   steps:
-    - name: "Friendly Name"
-      id: code
-      shell: bash
-      run: |
-        # Friendly Name
-        INPUT="${{ inputs.input }}"
-        if [ -z "$INPUT" ]; then
-          echo "Error: mandatory input INPUT was not set/configured ❌"
-          exit 1
-        fi
+    # yamllint disable-line rule:line-length
+    - uses: lfit/releng-reusable-workflows/.github/actions/path-check-action@9b845102d5158f0b80bd53405a0b6855b26dc4a0 # v0.2.9
+      id: setup-py
+      with:
+        path: "${{ inputs.path_prefix }}setup.py"
 
-        echo "output=$INPUT" >> "$GITHUB_ENV"
-        echo "output=$INPUT" >> "$GITHUB_OUTPUT"
-        echo "Action received a valid input: $INPUT ✅"
-        echo "Action received a valid input: $INPUT ✅" >> "$GITHUB_STEP_SUMMARY"
+    # yamllint disable-line rule:line-length
+    - uses: lfit/releng-reusable-workflows/.github/actions/path-check-action@9b845102d5158f0b80bd53405a0b6855b26dc4a0 # v0.2.9
+      id: pyproject-toml
+      with:
+        path: "${{ inputs.path_prefix }}pyproject.toml"
+
+    - name: "Patch Python project version: setup.py"
+      id: patch-version-setup-py
+      if: steps.setup-py.outputs.type == 'file'
+      # yamllint disable-line rule:line-length
+      uses: lfreleng-actions/file-sed-regex-action@8b6ab94c60adb3d87bbc5ecd81fc3c55dc9516af # v0.1.0
+      with:
+        flags: "-i -E"
+        regex: 's:version=.*$:version="${{ inputs.REPLACEMENT_VERSION }}":'
+        path: "${{ inputs.path_prefix }}setup.py"
+
+    - name: "Patch Python project version: pyproject.toml"
+      id: patch-version-pyproject-toml
+      if: steps.pyproject-toml.outputs.type == 'file'
+      # yamllint disable-line rule:line-length
+      uses: lfreleng-actions/file-sed-regex-action@8b6ab94c60adb3d87bbc5ecd81fc3c55dc9516af # v0.1.0
+      with:
+        flags: "-i -E"
+        regex: 's:^version =.*$:version = "${{ inputs.REPLACEMENT_VERSION }}":'
+        path: "${{ inputs.path_prefix }}pyproject.toml"
