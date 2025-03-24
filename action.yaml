@@ -37,7 +37,7 @@ runs:
       id: patch-version-setup-py
       if: steps.setup-py.outputs.type == 'file'
       # yamllint disable-line rule:line-length
-      uses: lfreleng-actions/file-sed-regex-action@8b6ab94c60adb3d87bbc5ecd81fc3c55dc9516af # v0.1.0
+      uses: lfreleng-actions/file-sed-regex-action@efa95bbf4a4add4f30d972843ca7902e8f7e48e4 # v0.1.1
       with:
         flags: "-i -E"
         regex: 's:version=.*$:version="${{ inputs.REPLACEMENT_VERSION }}":'
@@ -47,7 +47,7 @@ runs:
       id: patch-version-pyproject-toml
       if: steps.pyproject-toml.outputs.type == 'file'
       # yamllint disable-line rule:line-length
-      uses: lfreleng-actions/file-sed-regex-action@8b6ab94c60adb3d87bbc5ecd81fc3c55dc9516af # v0.1.0
+      uses: lfreleng-actions/file-sed-regex-action@efa95bbf4a4add4f30d972843ca7902e8f7e48e4 # v0.1.1
       with:
         flags: "-i -E"
         regex: 's:^version =.*$:version = "${{ inputs.REPLACEMENT_VERSION }}":'
