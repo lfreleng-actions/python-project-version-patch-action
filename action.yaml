@@ -22,13 +22,13 @@ runs:
   using: "composite"
   steps:
     # yamllint disable-line rule:line-length
-    - uses: lfit/releng-reusable-workflows/.github/actions/path-check-action@9b845102d5158f0b80bd53405a0b6855b26dc4a0 # v0.2.9
+    - uses: lfreleng-actions/path-check-action@554ef2267e6810ab7ac56506c8c1fd00725d59b1 # v0.1.0
       id: setup-py
       with:
         path: "${{ inputs.path_prefix }}setup.py"
 
     # yamllint disable-line rule:line-length
-    - uses: lfit/releng-reusable-workflows/.github/actions/path-check-action@9b845102d5158f0b80bd53405a0b6855b26dc4a0 # v0.2.9
+    - uses: lfreleng-actions/path-check-action@554ef2267e6810ab7ac56506c8c1fd00725d59b1 # v0.1.0
       id: pyproject-toml
       with:
         path: "${{ inputs.path_prefix }}pyproject.toml"
