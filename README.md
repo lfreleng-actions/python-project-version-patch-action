@@ -30,5 +30,5 @@ An example workflow step using this action:
 
 | Output Variable     | Description                                    |
 | ------------------- | ---------------------------------------------- |
-| REPLACEMENT_VERSION | Replacement version of the Python Project      |
-| PATH_PREFIX         | Directory path to the repository/project files |
+| replacement_version | Replacement version of the Python Project      |
+| path_prefix         | Directory path to the repository/project files |

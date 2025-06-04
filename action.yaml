@@ -3,35 +3,35 @@
 # SPDX-FileCopyrightText: 2025 The Linux Foundation
 
 # python-project-version-patch-action
-name: "🐍 Patches the Python Project Version"
-description: "Replaces/updates the Python project metadata/version string"
+name: '🐍 Patch the Python Project Version'
+description: 'Replaces/updates the Python project version string'
 # Note: works with both pyproject.toml and setup.py
 
 inputs:
-  REPLACEMENT_VERSION:
-    description: "New project version string"
+  replacement_version:
+    description: 'Replacement project version string'
     required: true
     type: string
-  PATH_PREFIX:
-    description: "Directory location containing project code"
+  path_prefix:
+    description: 'Directory location containing project code'
     type: string
     required: false
-    default: ""
+    default: '.'
 
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
     # yamllint disable-line rule:line-length
-    - uses: lfreleng-actions/path-check-action@7f728b8ac404d3309cfa576f0ffc54217ade2faa # v0.1.1
+    - uses: lfreleng-actions/path-check-action@aa7dabfa92e50e31a0f091dd3e2741692e8dde07 # v0.1.5
       id: setup-py
       with:
-        path: "${{ inputs.path_prefix }}setup.py"
+        path: "${{ inputs.path_prefix }}/setup.py"
 
     # yamllint disable-line rule:line-length
-    - uses: lfreleng-actions/path-check-action@7f728b8ac404d3309cfa576f0ffc54217ade2faa # v0.1.1
+    - uses: lfreleng-actions/path-check-action@aa7dabfa92e50e31a0f091dd3e2741692e8dde07 # v0.1.5
       id: pyproject-toml
       with:
-        path: "${{ inputs.path_prefix }}pyproject.toml"
+        path: "${{ inputs.path_prefix }}/pyproject.toml"
 
     - name: "Patch Python project version: setup.py"
       id: patch-version-setup-py
@@ -39,9 +39,9 @@ runs:
       # yamllint disable-line rule:line-length
       uses: lfreleng-actions/file-sed-regex-action@efa95bbf4a4add4f30d972843ca7902e8f7e48e4 # v0.1.1
       with:
-        flags: "-i -E"
-        regex: 's:version=.*$:version="${{ inputs.REPLACEMENT_VERSION }}":'
-        path: "${{ inputs.path_prefix }}setup.py"
+        flags: '-i -E'
+        regex: 's:version=.*$:version="${{ inputs.replacement_version }}":'
+        path: "${{ inputs.path_prefix }}/setup.py"
 
     - name: "Patch Python project version: pyproject.toml"
       id: patch-version-pyproject-toml
@@ -49,6 +49,6 @@ runs:
       # yamllint disable-line rule:line-length
       uses: lfreleng-actions/file-sed-regex-action@efa95bbf4a4add4f30d972843ca7902e8f7e48e4 # v0.1.1
       with:
-        flags: "-i -E"
-        regex: 's:^version =.*$:version = "${{ inputs.REPLACEMENT_VERSION }}":'
-        path: "${{ inputs.path_prefix }}pyproject.toml"
+        flags: '-i -E'
+        regex: 's:^version =.*$:version = "${{ inputs.replacement_version }}":'
+        path: "${{ inputs.path_prefix }}/pyproject.toml"
