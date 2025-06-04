@@ -23,12 +23,12 @@ An example workflow step using this action:
   - name: Patch the current Python Project version
     uses: lfreleng-actions/python-project-version-patch-action@main
     with:
-      replacement_version: "0.2.0"
+      replacement_version: '0.2.0'
 ```
 
 ## Inputs
 
 | Output Variable     | Description                                    |
 | ------------------- | ---------------------------------------------- |
-| REPLACEMENT_VERSION | Replacement version of the Python Project      |
-| PATH_PREFIX         | Directory path to the repository/project files |
+| replacement_version | Replacement version of the Python Project      |
+| path_prefix         | Directory path to the repository/project files |
