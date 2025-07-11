@@ -3,71 +3,66 @@
 # SPDX-FileCopyrightText: 2025 The Linux Foundation
 
 # python-project-version-patch-action
-name: "🐍 Patches the Python Project Version"
-description: "Replaces/updates the Python project metadata/version string"
+name: '🐍 Patch the Python Project Version'
+description: 'Replaces/updates the Python project version string'
 # Note: works with both pyproject.toml and setup.py
 
 inputs:
   # Mandatory
-  REPLACEMENT_VERSION:
-    description: "New project version string"
+  replacement_version:
+    description: 'Replacement project version string'
     required: true
-    type: string
-  PATH_PREFIX:
-    description: "Directory location containing project code"
-    type: string
+    # type: string
+  path_prefix:
+    description: 'Directory location containing project code'
     required: false
+    default: '.'
+    # type: string
 
 runs:
-  using: "composite"
+  using: 'composite'
   steps:
-    - name: "Setup action/environment"
+    - name: 'Verify valid directory path'
       shell: bash
       run: |
-        # Setup action/environment
-        # Handle path_prefix input consistently and when absent
-        path_prefix="${{ inputs.PATH_PREFIX }}"
-        if [ -z "$path_prefix" ]; then
-          # Set current directory as path prefix
-          path_prefix="."
-        else
-          # Strip any trailing slash in provided path
-          path_prefix="${path_prefix%/}"
+        # Verify valid directory path
+        if [ ! -d "${{ inputs.path_prefix }}" ]; then
+          echo 'Error: invalid path/prefix to project directory ❌'; exit 1
         fi
-        # Verify is a valid directory path
-        if [ ! -d "$path_prefix" ]; then
-          echo "Error: invalid path/prefix to project directory ❌"; exit 1
-        fi
-        echo "path_prefix=$path_prefix" >> "$GITHUB_ENV"
 
     # yamllint disable-line rule:line-length
-    - uses: lfreleng-actions/path-check-action@aa7dabfa92e50e31a0f091dd3e2741692e8dde07 # v0.1.5
+    - uses: lfreleng-actions/path-check-action@aa7dabfa92e50e31a0f091dd3e2741692e8dde07  # v0.1.5
       id: setup-py
       with:
-        path: "${{ env.path_prefix }}/setup.py"
+        path: "${{ inputs.path_prefix }}/setup.py"
 
     # yamllint disable-line rule:line-length
-    - uses: lfreleng-actions/path-check-action@aa7dabfa92e50e31a0f091dd3e2741692e8dde07 # v0.1.5
+    - uses: lfreleng-actions/path-check-action@aa7dabfa92e50e31a0f091dd3e2741692e8dde07  # v0.1.5
       id: pyproject-toml
       with:
-        path: "${{ env.path_prefix }}/pyproject.toml"
+        path: "${{ inputs.path_prefix }}/pyproject.toml"
 
-    - name: "Patch Python project version: setup.py"
+    - name: 'Patch Python project version: setup.py'
       id: patch-version-setup-py
       if: steps.setup-py.outputs.type == 'file'
       # yamllint disable-line rule:line-length
       uses: lfreleng-actions/file-sed-regex-action@e2c1c94d7936e1ded3e5fa8109416383f472ef7c # v0.1.2
       with:
-        flags: "-i -E"
-        regex: 's:version=.*$:version="${{ inputs.REPLACEMENT_VERSION }}":'
-        path: "${{ env.path_prefix }}/setup.py"
+        flags: '-i -E'
+        # yamllint disable-line rule:line-length
+        regex: '/^[[:space:]]*version[[:space:]]*=.*$/{ s//version="${{ inputs.replacement_version }}"/; t found; }; $ { b notfound; }; b; :found q0; :notfound q1'
+        path: "${{ inputs.path_prefix }}/setup.py"
+        debug: true
 
-    - name: "Patch Python project version: pyproject.toml"
+    - name: 'Patch Python project version: pyproject.toml'
       id: patch-version-pyproject-toml
       if: steps.pyproject-toml.outputs.type == 'file'
       # yamllint disable-line rule:line-length
       uses: lfreleng-actions/file-sed-regex-action@e2c1c94d7936e1ded3e5fa8109416383f472ef7c # v0.1.2
       with:
-        flags: "-i -E"
-        regex: 's:^version =.*$:version = "${{ inputs.REPLACEMENT_VERSION }}":'
-        path: "${{ env.path_prefix }}/pyproject.toml"
+        flags: '-i -E'
+        # yamllint disable-line rule:line-length
+        regex: '/^version =.*$/{ s//version = "${{ inputs.replacement_version }}"/; t found; }; $ { b notfound; }; b; :found q0; :notfound q1'
+        path: "${{ inputs.path_prefix }}/pyproject.toml"
+        debug: true
+        # yamllint enable rule:line-length
