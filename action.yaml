@@ -12,10 +12,10 @@ inputs:
   REPLACEMENT_VERSION:
     description: "New project version string"
     required: true
-    type: string
+    # type: string
   PATH_PREFIX:
     description: "Directory location containing project code"
-    type: string
+    # type: string
     required: false
 
 runs:
