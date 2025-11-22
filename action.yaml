@@ -30,6 +30,35 @@ runs:
           echo 'Error: invalid path/prefix to project directory ❌'; exit 1
         fi
 
+    - name: 'Normalize and validate version'
+      id: normalize
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Normalize and validate version
+
+        input_version="${{ inputs.replacement_version }}"
+        echo "Input version: $input_version"
+
+        # Strip leading 'v' or 'V' if present (common in Git tags)
+        normalized_version="${input_version#[vV]}"
+
+        # Validate that the normalized version is not empty
+        if [ -z "$normalized_version" ]; then
+          echo "Error: Version string is empty after normalization" >&2
+          exit 1
+        fi
+
+        # Basic PEP 440 validation (X.Y.Z, X.Y.Z.dev0, X.Y.ZaN, etc.)
+        pep440_pattern='^[0-9]+(\.[0-9]+)*((a|b|rc)[0-9]+)?(\.dev[0-9]+)?(\.post[0-9]+)?$'
+        if ! echo "$normalized_version" | grep -qE "$pep440_pattern"; then
+          echo "Warning: Version may not be PEP 440 compliant" >&2
+          echo "Proceeding anyway, but this may cause issues" >&2
+        fi
+
+        echo "Normalized version: $normalized_version"
+        echo "normalized_version=$normalized_version" >> "$GITHUB_OUTPUT"
+
     # yamllint disable-line rule:line-length
     - uses: lfreleng-actions/path-check-action@aa7dabfa92e50e31a0f091dd3e2741692e8dde07  # v0.1.5
       id: setup-py
@@ -50,7 +79,7 @@ runs:
       with:
         flags: '-i -E'
         # yamllint disable-line rule:line-length
-        regex: '/^[[:space:]]*version[[:space:]]*=.*$/{ s//version="${{ inputs.replacement_version }}"/; t found; }; $ { b notfound; }; b; :found q0; :notfound q1'
+        regex: '/^[[:space:]]*version[[:space:]]*=.*$/{ s//version="${{ steps.normalize.outputs.normalized_version }}"/; t found; }; $ { b notfound; }; b; :found q0; :notfound q1'
         path: "${{ inputs.path_prefix }}/setup.py"
         debug: true
 
@@ -62,7 +91,7 @@ runs:
       with:
         flags: '-i -E'
         # yamllint disable-line rule:line-length
-        regex: '/^version =.*$/{ s//version = "${{ inputs.replacement_version }}"/; t found; }; $ { b notfound; }; b; :found q0; :notfound q1'
+        regex: '/^version =.*$/{ s//version = "${{ steps.normalize.outputs.normalized_version }}"/; t found; }; $ { b notfound; }; b; :found q0; :notfound q1'
         path: "${{ inputs.path_prefix }}/pyproject.toml"
         debug: true
         # yamllint enable rule:line-length
