@@ -34,9 +34,103 @@ jobs:
           repository: "lfreleng-actions/test-python-project"
           path: "test-python-project"
 
-      - name: "Run Action: ${{ github.repository }}"
+      - name: "Run Action: ${{ github.repository }} [Without v prefix]"
         uses: ./
         with:
           path_prefix: "test-python-project/"
           # Python projects do not have a "v" prefix
           replacement_version: "0.2.0"
+
+      - name: "Verify version was patched correctly"
+        shell: bash
+        run: |
+          # Verify version was patched correctly
+          version=$(grep '^version = ' \
+            test-python-project/pyproject.toml | cut -d'"' -f2)
+          if [ "$version" = "0.2.0" ]; then
+            echo "Version patched correctly: $version ✅"
+          else
+            echo "Error: Expected version 0.2.0, got: $version ❌"
+            exit 1
+          fi
+
+      # yamllint disable-line rule:line-length
+      - name: "Run Action: ${{ github.repository }} [With v prefix - normalization test]"
+        uses: ./
+        with:
+          path_prefix: "test-python-project/"
+          # Test that action strips the "v" prefix (common in Git tags)
+          replacement_version: "v3.0.0"
+
+      - name: "Verify v prefix was stripped"
+        shell: bash
+        run: |
+          # Verify v prefix was stripped
+          version=$(grep '^version = ' \
+            test-python-project/pyproject.toml | cut -d'"' -f2)
+          if [ "$version" = "3.0.0" ]; then
+            echo "Version normalized (v prefix stripped): $version ✅"
+          else
+            echo "Error: Expected version 3.0.0, got: $version ❌"
+            exit 1
+          fi
+
+      - name: "Run Action: ${{ github.repository }} [PEP 440 dev release]"
+        uses: ./
+        with:
+          path_prefix: "test-python-project/"
+          # Test PEP 440 developmental release format
+          replacement_version: "1.0.0.dev0"
+
+      - name: "Verify PEP 440 dev version"
+        shell: bash
+        run: |
+          # Verify PEP 440 dev version was patched correctly
+          version=$(grep '^version = ' \
+            test-python-project/pyproject.toml | cut -d'"' -f2)
+          if [ "$version" = "1.0.0.dev0" ]; then
+            echo "PEP 440 dev version patched correctly: $version ✅"
+          else
+            echo "Error: Expected version 1.0.0.dev0, got: $version ❌"
+            exit 1
+          fi
+
+      - name: "Run Action: ${{ github.repository }} [PEP 440 post release]"
+        uses: ./
+        with:
+          path_prefix: "test-python-project/"
+          # Test PEP 440 post release format
+          replacement_version: "2.0.0.post1"
+
+      - name: "Verify PEP 440 post version"
+        shell: bash
+        run: |
+          # Verify PEP 440 post version was patched correctly
+          version=$(grep '^version = ' \
+            test-python-project/pyproject.toml | cut -d'"' -f2)
+          if [ "$version" = "2.0.0.post1" ]; then
+            echo "PEP 440 post version patched correctly: $version ✅"
+          else
+            echo "Error: Expected version 2.0.0.post1, got: $version ❌"
+            exit 1
+          fi
+
+      - name: "Run Action: ${{ github.repository }} [PEP 440 alpha with v]"
+        uses: ./
+        with:
+          path_prefix: "test-python-project/"
+          # Test PEP 440 alpha with v prefix
+          replacement_version: "v4.0.0a1"
+
+      - name: "Verify PEP 440 alpha version"
+        shell: bash
+        run: |
+          # Verify PEP 440 alpha version was patched correctly
+          version=$(grep '^version = ' \
+            test-python-project/pyproject.toml | cut -d'"' -f2)
+          if [ "$version" = "4.0.0a1" ]; then
+            echo "PEP 440 alpha (v stripped) patched correctly: $version ✅"
+          else
+            echo "Error: Expected version 4.0.0a1, got: $version ❌"
+            exit 1
+          fi
