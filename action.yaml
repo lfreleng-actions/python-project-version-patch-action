@@ -24,20 +24,24 @@ runs:
   steps:
     - name: 'Verify valid directory path'
       shell: bash
+      env:
+        INPUT_PATH_PREFIX: ${{ inputs.path_prefix }}
       run: |
         # Verify valid directory path
-        if [ ! -d "${{ inputs.path_prefix }}" ]; then
+        if [ ! -d "$INPUT_PATH_PREFIX" ]; then
           echo 'Error: invalid path/prefix to project directory ❌'; exit 1
         fi
 
     - name: 'Normalize and validate version'
       id: normalize
       shell: bash
+      env:
+        INPUT_REPLACEMENT_VERSION: ${{ inputs.replacement_version }}
       run: |
         set -euo pipefail
         # Normalize and validate version
 
-        input_version="${{ inputs.replacement_version }}"
+        input_version="$INPUT_REPLACEMENT_VERSION"
         echo "Input version: $input_version"
 
         # Strip leading 'v' or 'V' if present (common in Git tags)
