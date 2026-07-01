@@ -79,7 +79,7 @@ runs:
       id: patch-version-setup-py
       if: steps.setup-py.outputs.type == 'file'
       # yamllint disable-line rule:line-length
-      uses: lfreleng-actions/file-sed-regex-action@e2c1c94d7936e1ded3e5fa8109416383f472ef7c # v0.1.2
+      uses: lfreleng-actions/file-sed-regex-action@12dd7fca1407a832a3591b544e7e23d5842aabeb # v0.2.0
       with:
         flags: '-i -E'
         # yamllint disable-line rule:line-length
@@ -91,7 +91,7 @@ runs:
       id: patch-version-pyproject-toml
       if: steps.pyproject-toml.outputs.type == 'file'
       # yamllint disable-line rule:line-length
-      uses: lfreleng-actions/file-sed-regex-action@e2c1c94d7936e1ded3e5fa8109416383f472ef7c # v0.1.2
+      uses: lfreleng-actions/file-sed-regex-action@12dd7fca1407a832a3591b544e7e23d5842aabeb # v0.2.0
       with:
         flags: '-i -E'
         # yamllint disable-line rule:line-length
