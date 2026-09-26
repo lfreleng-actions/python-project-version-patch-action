@@ -28,11 +28,6 @@ jobs:
       contents: read
     timeout-minutes: 10
     steps:
-      - name: "Checkout repository"
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
       # Perform setup prior to running test(s)
       - name: "Checkout sample project repository"
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -51,7 +46,7 @@ jobs:
             test-python-project/pyproject.toml
 
       - name: "Run Action: ${{ github.repository }} [Without v prefix]"
-        uses: ./
+        uses: $/
         with:
           path_prefix: "test-python-project/"
           # Python projects do not have a "v" prefix
@@ -72,7 +67,7 @@ jobs:
 
       # yamllint disable-line rule:line-length
       - name: "Run Action: ${{ github.repository }} [With v prefix - normalization test]"
-        uses: ./
+        uses: $/
         with:
           path_prefix: "test-python-project/"
           # Test that action strips the "v" prefix (common in Git tags)
@@ -92,7 +87,7 @@ jobs:
           fi
 
       - name: "Run Action: ${{ github.repository }} [PEP 440 dev release]"
-        uses: ./
+        uses: $/
         with:
           path_prefix: "test-python-project/"
           # Test PEP 440 developmental release format
@@ -112,7 +107,7 @@ jobs:
           fi
 
       - name: "Run Action: ${{ github.repository }} [PEP 440 post release]"
-        uses: ./
+        uses: $/
         with:
           path_prefix: "test-python-project/"
           # Test PEP 440 post release format
@@ -132,7 +127,7 @@ jobs:
           fi
 
       - name: "Run Action: ${{ github.repository }} [PEP 440 alpha with v]"
-        uses: ./
+        uses: $/
         with:
           path_prefix: "test-python-project/"
           # Test PEP 440 alpha with v prefix
