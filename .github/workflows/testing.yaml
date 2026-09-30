@@ -145,3 +145,241 @@ jobs:
             echo "Error: Expected version 4.0.0a1, got: $version ❌"
             exit 1
           fi
+
+      - name: "Verify content outside the version line is unchanged"
+        shell: bash
+        run: |
+          # Verify content outside the version line is unchanged
+          # All runs above patch the same file, so this catches any run
+          # that truncates or otherwise damages it (see #165)
+          fixture=test-python-project/variations/static-eol.toml
+          patched=test-python-project/pyproject.toml
+          if diff -u <(grep -v '^version = ' "$fixture") \
+            <(grep -v '^version = ' "$patched"); then
+            echo "Content outside the version line preserved ✅"
+          else
+            echo "Error: Patching altered content outside the version line ❌"
+            exit 1
+          fi
+
+      # Expected failures: the run above patched this file successfully,
+      # so only replacement_version differs. If validation let either value
+      # through, sed would rewrite the file (running the injected commands,
+      # or taking the first line of a split GITHUB_OUTPUT value); the
+      # checksum catches that even when a later check fails the run.
+      - name: "Snapshot project file before invalid version runs"
+        shell: bash
+        run: |
+          # Snapshot project file before invalid version runs
+          sha256sum test-python-project/pyproject.toml > pyproject.sha256
+
+      - name: "Run Action: ${{ github.repository }} [Invalid: sed injection]"
+        id: invalid-injection
+        continue-on-error: true
+        uses: $/
+        with:
+          path_prefix: "test-python-project/"
+          replacement_version: "1.0.0/; s/.*/pwned = true/; s/x/x"
+
+      - name: "Run Action: ${{ github.repository }} [Invalid: embedded newline]"
+        id: invalid-newline
+        continue-on-error: true
+        uses: $/
+        with:
+          path_prefix: "test-python-project/"
+          # Double-quoted YAML scalar: \n is a real newline
+          replacement_version: "1.0.0\nfoo=bar"
+
+      - name: "Verify invalid versions failed and left the file unchanged"
+        shell: bash
+        env:
+          INJECTION_OUTCOME: ${{ steps.invalid-injection.outcome }}
+          NEWLINE_OUTCOME: ${{ steps.invalid-newline.outcome }}
+        run: |
+          # Verify invalid versions failed and left the file unchanged
+          status=0
+          if [ "$INJECTION_OUTCOME" != 'failure' ]; then
+            echo "Error: sed injection run outcome: $INJECTION_OUTCOME ❌"
+            status=1
+          fi
+          if [ "$NEWLINE_OUTCOME" != 'failure' ]; then
+            echo "Error: embedded newline run outcome: $NEWLINE_OUTCOME ❌"
+            status=1
+          fi
+          if ! sha256sum --check pyproject.sha256; then
+            echo "Error: an invalid version modified pyproject.toml ❌"
+            status=1
+          fi
+          if [ "$status" = 0 ]; then
+            echo "Invalid versions rejected, file unchanged ✅"
+          fi
+          exit "$status"
+
+  ### Test patching a setup.py-only project ###
+  setup-py:
+    name: "Action Testing [setup.py]"
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    steps:
+      - name: "Create setup.py project fixture"
+        shell: bash
+        run: |
+          # Create setup.py project fixture
+          # No pyproject.toml, so the action patches only setup.py
+          mkdir -p setup-py-project
+          cat > setup-py-fixture.py <<'EOF'
+          from setuptools import setup
+
+          setup(
+              name="demo",
+              version='0.0.1',  # replaced by the action
+              description="Content after the version argument",
+              packages=["demo"],
+              install_requires=["requests"],
+          )
+          EOF
+          cp setup-py-fixture.py setup-py-project/setup.py
+
+      - name: "Run Action: ${{ github.repository }} [setup.py]"
+        uses: $/
+        with:
+          path_prefix: "setup-py-project/"
+          replacement_version: "v1.2.3"
+
+      - name: "Verify setup.py was patched, preserved and still parses"
+        shell: bash
+        run: |
+          # Verify setup.py was patched, preserved and still parses
+          fixture=setup-py-fixture.py
+          patched=setup-py-project/setup.py
+          status=0
+          expected='    version="1.2.3",  # replaced by the action'
+          if ! grep -qxF "$expected" "$patched"; then
+            echo "Error: version line not patched as expected ❌"
+            status=1
+          fi
+          if [ "$(wc -l < "$fixture")" != "$(wc -l < "$patched")" ] ||
+            ! diff -u <(grep -v '^    version=' "$fixture") \
+              <(grep -v '^    version=' "$patched"); then
+            echo "Error: patching altered lines other than version ❌"
+            status=1
+          fi
+          parse='import ast,sys; ast.parse(open(sys.argv[1]).read())'
+          if ! python3 -c "$parse" "$patched"; then
+            echo "Error: patched setup.py is not valid Python ❌"
+            status=1
+          fi
+          if [ "$status" = 0 ]; then
+            echo "setup.py patched, preserved and parses ✅"
+          else
+            cat "$patched"
+          fi
+          exit "$status"
+
+      # A computed value that starts with a string literal must not be
+      # treated as a literal: patching it would report success while
+      # Python still evaluates the original expression
+      - name: "Create setup.py fixture with a computed version"
+        shell: bash
+        run: |
+          # Create setup.py fixture with a computed version
+          mkdir -p setup-py-computed
+          cat > setup-py-computed/setup.py <<'EOF'
+          from setuptools import setup
+
+          setup(
+              name="demo",
+              version="1.0" if False else "9.0",
+          )
+          EOF
+          sha256sum setup-py-computed/setup.py > setup-py-computed.sha256
+
+      - name: "Run Action: ${{ github.repository }} [Computed setup.py]"
+        id: computed-setup-py
+        continue-on-error: true
+        uses: $/
+        with:
+          path_prefix: "setup-py-computed/"
+          replacement_version: "1.2.3"
+
+      - name: "Verify computed version failed and left setup.py unchanged"
+        shell: bash
+        env:
+          COMPUTED_OUTCOME: ${{ steps.computed-setup-py.outcome }}
+        run: |
+          # Verify computed version failed and left setup.py unchanged
+          status=0
+          if [ "$COMPUTED_OUTCOME" != 'failure' ]; then
+            echo "Error: computed version run outcome: $COMPUTED_OUTCOME ❌"
+            status=1
+          fi
+          if ! sha256sum --check setup-py-computed.sha256; then
+            echo "Error: a computed version was rewritten ❌"
+            status=1
+          fi
+          if [ "$status" = 0 ]; then
+            echo "Computed version rejected, setup.py unchanged ✅"
+          fi
+          exit "$status"
+
+  ### Test that empty project files fail instead of passing silently ###
+  empty-files:
+    name: "Action Testing [empty project files]"
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    timeout-minutes: 10
+    steps:
+      - name: "Create empty project files"
+        shell: bash
+        run: |
+          # Create empty project files
+          mkdir -p empty-setup-py empty-pyproject
+          : > empty-setup-py/setup.py
+          : > empty-pyproject/pyproject.toml
+
+      # The version is valid and sed exits 0 on an empty file, so only the
+      # action's post-patch version check can fail these runs
+      - name: "Run Action: ${{ github.repository }} [Empty setup.py]"
+        id: empty-setup-py
+        continue-on-error: true
+        uses: $/
+        with:
+          path_prefix: "empty-setup-py/"
+          replacement_version: "1.2.3"
+
+      - name: "Run Action: ${{ github.repository }} [Empty pyproject.toml]"
+        id: empty-pyproject
+        continue-on-error: true
+        uses: $/
+        with:
+          path_prefix: "empty-pyproject/"
+          replacement_version: "1.2.3"
+
+      - name: "Verify empty project files failed and stayed empty"
+        shell: bash
+        env:
+          SETUP_PY_OUTCOME: ${{ steps.empty-setup-py.outcome }}
+          PYPROJECT_OUTCOME: ${{ steps.empty-pyproject.outcome }}
+        run: |
+          # Verify empty project files failed and stayed empty
+          status=0
+          if [ "$SETUP_PY_OUTCOME" != 'failure' ]; then
+            echo "Error: empty setup.py run outcome: $SETUP_PY_OUTCOME ❌"
+            status=1
+          fi
+          if [ "$PYPROJECT_OUTCOME" != 'failure' ]; then
+            echo "Error: empty pyproject.toml outcome: $PYPROJECT_OUTCOME ❌"
+            status=1
+          fi
+          if [ -s empty-setup-py/setup.py ] ||
+            [ -s empty-pyproject/pyproject.toml ]; then
+            echo "Error: an empty project file was modified ❌"
+            status=1
+          fi
+          if [ "$status" = 0 ]; then
+            echo "Empty project files rejected ✅"
+          fi
+          exit "$status"
