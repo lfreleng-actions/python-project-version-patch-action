@@ -53,12 +53,18 @@ runs:
           exit 1
         fi
 
-        # Basic PEP 440 validation (X.Y.Z, X.Y.Z.dev0, X.Y.ZaN, etc.)
-        pep440_pattern='^[0-9]+(\.[0-9]+)*((a|b|rc)[0-9]+)?(\.dev[0-9]+)?(\.post[0-9]+)?$'
-        if ! echo "$normalized_version" | grep -qE "$pep440_pattern"; then
-          echo "Warning: Version may not be PEP 440 compliant" >&2
-          echo "Proceeding anyway, but this may cause issues" >&2
+        # PEP 440 version grammar (epoch, release, pre, post, dev, local),
+        # matched case-insensitively against the whole string. Rejecting
+        # anything else also guarantees the value holds only characters
+        # from [0-9A-Za-z.!+_-]: no newline, quote, '/', '&' or '\', so it
+        # is safe to embed in the sed programs and $GITHUB_OUTPUT below.
+        pep440_pattern='^([0-9]+!)?[0-9]+(\.[0-9]+)*([-_.]?(a|b|c|rc|alpha|beta|pre|preview)[-_.]?[0-9]*)?(-[0-9]+|[-_.]?(post|rev|r)[-_.]?[0-9]*)?([-_.]?dev[-_.]?[0-9]*)?(\+[0-9A-Za-z]+([-_.][0-9A-Za-z]+)*)?$'
+        shopt -s nocasematch
+        if ! [[ $normalized_version =~ $pep440_pattern ]]; then
+          echo "Error: Version is not PEP 440 compliant ❌" >&2
+          exit 1
         fi
+        shopt -u nocasematch
 
         echo "Normalized version: $normalized_version"
         echo "normalized_version=$normalized_version" >> "$GITHUB_OUTPUT"
@@ -82,10 +88,38 @@ runs:
       uses: lfreleng-actions/file-sed-regex-action@12dd7fca1407a832a3591b544e7e23d5842aabeb # v0.2.0
       with:
         flags: '-i -E'
+        # Replace only the quoted literal in the first version= line whose
+        # value is exactly one string literal (followed only by an optional
+        # comma or closing paren and comment), keeping indentation and the
+        # tail; a computed value such as "1.0" if x else "2.0" is not
+        # matched. Process every line (quitting early would truncate the
+        # file under -i) and exit 1 on the last line if nothing matched.
         # yamllint disable-line rule:line-length
-        regex: '/^[[:space:]]*version[[:space:]]*=.*$/{ s//version="${{ steps.normalize.outputs.normalized_version }}"/; t found; }; $ { b notfound; }; b; :found q0; :notfound q1'
+        regex: '0,/^([[:space:]]*version[[:space:]]*=[[:space:]]*)["''][^"'']*["'']([[:space:]]*[,)]*[[:space:]]*(#.*)?)$/{ /^([[:space:]]*version[[:space:]]*=[[:space:]]*)["''][^"'']*["'']([[:space:]]*[,)]*[[:space:]]*(#.*)?)$/{ s//\1"${{ steps.normalize.outputs.normalized_version }}"\2/; x; s/^/found/; x; }; }; ${ x; /^found/!{ x; q1; }; x; }'
         path: "${{ inputs.path_prefix }}/setup.py"
         debug: true
+
+    # sed runs no commands on an empty file and exits 0, so confirm the
+    # patch took effect instead of trusting the exit status alone
+    - name: 'Verify patched version: setup.py'
+      if: steps.setup-py.outputs.type == 'file'
+      shell: bash
+      env:
+        PATCHED_FILE: "${{ inputs.path_prefix }}/setup.py"
+        NORMALIZED_VERSION: ${{ steps.normalize.outputs.normalized_version }}
+      run: |
+        # Verify patched version: setup.py
+        # Same match as the sed program: first version= line holding a
+        # single string literal
+        literal_re=$'^[[:space:]]*version[[:space:]]*=[[:space:]]*["\']([^"\']*)["\'][[:space:]]*[,)]*[[:space:]]*(#.*)?$'
+        line=$(grep -m1 -E "$literal_re" "$PATCHED_FILE" || true)
+        if [[ $line =~ $literal_re ]] &&
+          [ "${BASH_REMATCH[1]}" = "$NORMALIZED_VERSION" ]; then
+          echo "Version set to $NORMALIZED_VERSION in $PATCHED_FILE ✅"
+        else
+          echo "Error: no version=\"$NORMALIZED_VERSION\" in $PATCHED_FILE ❌"
+          exit 1
+        fi
 
     - name: 'Patch Python project version: pyproject.toml'
       id: patch-version-pyproject-toml
@@ -94,8 +128,26 @@ runs:
       uses: lfreleng-actions/file-sed-regex-action@12dd7fca1407a832a3591b544e7e23d5842aabeb # v0.2.0
       with:
         flags: '-i -E'
+        # Replace the first version line, process every line, and exit 1
+        # on the last line if nothing matched (see setup.py step above)
         # yamllint disable-line rule:line-length
-        regex: '/^version =.*$/{ s//version = "${{ steps.normalize.outputs.normalized_version }}"/; t found; }; $ { b notfound; }; b; :found q0; :notfound q1'
+        regex: '0,/^version =/{ /^version =/{ s/.*/version = "${{ steps.normalize.outputs.normalized_version }}"/; x; s/^/found/; x; }; }; ${ x; /^found/!{ x; q1; }; x; }'
         path: "${{ inputs.path_prefix }}/pyproject.toml"
         debug: true
         # yamllint enable rule:line-length
+
+    - name: 'Verify patched version: pyproject.toml'
+      if: steps.pyproject-toml.outputs.type == 'file'
+      shell: bash
+      env:
+        PATCHED_FILE: "${{ inputs.path_prefix }}/pyproject.toml"
+        NORMALIZED_VERSION: ${{ steps.normalize.outputs.normalized_version }}
+      run: |
+        # Verify patched version: pyproject.toml
+        line=$(grep -m1 '^version =' "$PATCHED_FILE" || true)
+        if [ "$line" = "version = \"$NORMALIZED_VERSION\"" ]; then
+          echo "Version set to $NORMALIZED_VERSION in $PATCHED_FILE ✅"
+        else
+          echo "Error: no version = \"$NORMALIZED_VERSION\" in $PATCHED_FILE ❌"
+          exit 1
+        fi
