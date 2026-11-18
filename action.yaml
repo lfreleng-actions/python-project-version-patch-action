@@ -85,7 +85,7 @@ runs:
       id: patch-version-setup-py
       if: steps.setup-py.outputs.type == 'file'
       # yamllint disable-line rule:line-length
-      uses: lfreleng-actions/file-sed-regex-action@477b0b435ae6c7915364c619f6ec6de99e14d3ae # v0.2.1
+      uses: lfreleng-actions/file-sed-regex-action@43f480504e7fb8851e0cde73b168da2c763da401 # v0.2.2
       with:
         flags: '-i -E'
         # Replace only the quoted literal in the first version= line whose
@@ -125,7 +125,7 @@ runs:
       id: patch-version-pyproject-toml
       if: steps.pyproject-toml.outputs.type == 'file'
       # yamllint disable-line rule:line-length
-      uses: lfreleng-actions/file-sed-regex-action@477b0b435ae6c7915364c619f6ec6de99e14d3ae # v0.2.1
+      uses: lfreleng-actions/file-sed-regex-action@43f480504e7fb8851e0cde73b168da2c763da401 # v0.2.2
       with:
         flags: '-i -E'
         # Replace the first version line, process every line, and exit 1
