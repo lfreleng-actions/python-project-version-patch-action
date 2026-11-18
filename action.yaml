@@ -70,13 +70,13 @@ runs:
         echo "normalized_version=$normalized_version" >> "$GITHUB_OUTPUT"
 
     # yamllint disable-line rule:line-length
-    - uses: lfreleng-actions/path-check-action@fb77045699ead7bb7014186ae23e4935ce277a21  # v0.2.3
+    - uses: lfreleng-actions/path-check-action@a873d0e6fc875fe54b36d38cd2a01c8cd9fe0c0b  # v0.2.4
       id: setup-py
       with:
         path: "${{ inputs.path_prefix }}/setup.py"
 
     # yamllint disable-line rule:line-length
-    - uses: lfreleng-actions/path-check-action@fb77045699ead7bb7014186ae23e4935ce277a21  # v0.2.3
+    - uses: lfreleng-actions/path-check-action@a873d0e6fc875fe54b36d38cd2a01c8cd9fe0c0b  # v0.2.4
       id: pyproject-toml
       with:
         path: "${{ inputs.path_prefix }}/pyproject.toml"
